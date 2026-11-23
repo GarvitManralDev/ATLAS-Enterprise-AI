@@ -6,7 +6,7 @@
 
 **Document ingestion · Grounded answers with citations · Conversation memory · Guardrails · Human-in-the-loop approvals**
 
-[Overview](#overview) · [Architecture](#architecture) · [Screenshots](#screenshots) · [Quick Start](#quick-start-docker) · [Configuration](#configuration) · [API](#api-reference) · [Limitations](#limitations-and-security)
+[Overview](#overview) · [Architecture](#architecture) · [Screenshots](#screenshots) · [Quick Start](#quick-start) · [Configuration](#configuration) · [API](#api-reference) · [Limitations](#limitations-and-security)
 
 
 
@@ -129,8 +129,6 @@ flowchart LR
 │   └── init_db.py         # Applies schema.sql and verifies tables
 ├── docs/
 │   └── screenshots/       # Images used in this README
-├── Dockerfile
-├── docker-compose.yml     # App + local Postgres
 ├── requirements.txt
 ├── .env.example
 └── LICENSE
@@ -142,11 +140,12 @@ You'll need these external services:
 
 - **AWS:** an S3 bucket and Bedrock model access to Titan Text Embeddings V2 and Nova Lite in your region
 - **Pinecone:** an API key (the index is created automatically)
-- *Optional:* a GlassFlow Rius API key, and an external PostgreSQL database (Docker Compose ships one)
+- **PostgreSQL 13+:** for example a free Render instance
+- *Optional:* a GlassFlow Rius API key
 
-For the local machine, you need **either** Docker (recommended) **or** Python 3.11+ and a PostgreSQL 13+ database.
+On your machine you need Python 3.11+.
 
-## Quick Start (Docker)
+## Quick Start
 
 ### 1. Clone and configure
 
@@ -156,7 +155,7 @@ cd ATLAS-Enterprise-AI
 cp .env.example .env
 ```
 
-Edit `.env` and fill in at least `S3_BUCKET` and `PINECONE_API_KEY`. For AWS credentials, set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or use a profile (see below). Leave `DATABASE_URL` empty to use the bundled Postgres container.
+Edit `.env` and fill in at least `S3_BUCKET`, `PINECONE_API_KEY`, `DATABASE_URL` and your AWS credentials.
 
 ### 2. Configure S3 CORS
 
@@ -176,53 +175,22 @@ The browser uploads straight to S3, so the bucket needs a CORS rule for the app'
 
 Keep the bucket private. Uploads are written to `tenants/<tenant>/incoming/<document_id>/v1.<ext>`.
 
-### 3. Start everything
-
-```bash
-docker compose up -d --build
-```
-
-This builds the app image and starts Postgres. When Postgres is healthy, the app applies `infra/schema.sql` (it's idempotent) and starts Uvicorn.
-
-- UI: http://localhost:8000
-- Interactive API docs: http://localhost:8000/api/docs
-
-### Everyday commands
-
-| Task | Command |
-| --- | --- |
-| Follow app logs | `docker compose logs -f app` |
-| Check status / health | `docker compose ps` |
-| Rebuild after code changes | `docker compose up -d --build` |
-| Stop | `docker compose down` |
-| Stop and **delete the local database** | `docker compose down -v` |
-| Open a psql shell | `docker compose exec db psql -U atlas -d atlas` |
-| Use a different host port | `APP_PORT=8080 docker compose up -d` |
-
-### Options
-
-- **External database (e.g. Render):** set `DATABASE_URL` in `.env`. The app uses it instead of the bundled container, which still starts but sits idle.
-- **AWS profile instead of keys:** leave both key variables empty, set `AWS_PROFILE=<name>` in `.env`, and uncomment the `~/.aws` volume in `docker-compose.yml`. SSO profiles need a fresh `aws sso login` on the host.
-- **Without Compose:** run the image directly against any reachable Postgres:
-  ```bash
-  docker build -t atlas-enterprise-ai .
-  docker run --rm -p 8000:8000 --env-file .env atlas-enterprise-ai
-  ```
-
-  In this case `DATABASE_URL` in `.env` must be set. Note that `localhost` inside the container is not your machine. Use `host.docker.internal` on macOS/Windows.
-
-## Running without Docker
+### 3. Install and run
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-cp .env.example .env             # set DATABASE_URL to your Postgres instance
 python scripts/init_db.py
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Run these from the repository root.
+
+Then open:
+
+- UI: http://localhost:8000
+- Interactive API docs: http://localhost:8000/api/docs
 
 ## Configuration
 
@@ -233,7 +201,7 @@ Run these from the repository root.
 | `AWS_REGION` | `us-east-1` | Region for S3 and Bedrock |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | *(empty)* | Optional. Set both or neither. If empty, boto3's default credential chain (profile, SSO, instance role) is used. |
 | `S3_BUCKET` | *(empty)* | Private bucket for uploaded files |
-| `DATABASE_URL` | *(empty)* | PostgreSQL URL, e.g. `postgresql://USER:PASS@HOST/DB?sslmode=require`. With Docker Compose, leave it empty to use the bundled database. |
+| `DATABASE_URL` | *(empty)* | PostgreSQL URL, e.g. `postgresql://USER:PASS@HOST/DB?sslmode=require`. |
 | `BEDROCK_EMBED_MODEL` | `amazon.titan-embed-text-v2:0` | Embedding model ID |
 | `BEDROCK_CHAT_MODEL` | `amazon.nova-lite-v1:0` | Chat model ID |
 | `EMBED_DIM` | `1024` | Embedding size. Must match the Pinecone index. |
@@ -309,10 +277,9 @@ This project favors clarity over production hardening. Known gaps:
 
 | Symptom | Check |
 | --- | --- |
-| App container keeps restarting | `docker compose logs app`. Usually a missing or invalid value in `.env`, or the database is unreachable. |
-| `Bind for 0.0.0.0:8000 failed: port is already allocated` | Another process is using port 8000. Run with `APP_PORT=8080 docker compose up -d`. |
+| `[Errno 48] Address already in use` | Another process is using port 8000. Add `--port 8001` to the uvicorn command. |
 | `No module named app` | Run from the repo root with `python -m uvicorn app.main:app` |
-| `DATABASE_URL is missing from .env` | Without Docker, `.env` must be in the directory you start Uvicorn from. With `docker run`, set it in `.env`. |
+| `DATABASE_URL is missing from .env` | Set it in `.env` and start Uvicorn from the repo root so `.env` is found. |
 | Upload says "Failed to fetch" / "S3 upload failed" | S3 CORS origin, bucket name, region, IAM `s3:PutObject` permission |
 | "Ingestion failed" (HTTP 502) | Server logs. Usually Bedrock model access, Pinecone key, or a scanned PDF. |
 | `Pinecone index … dimension=X, expected 1024` | Use a new `PINECONE_INDEX_NAME` or set a matching `EMBED_DIM` |
