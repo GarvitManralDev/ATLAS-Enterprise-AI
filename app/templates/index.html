@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atlas · Enterprise Knowledge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css?v=minimal-1">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 18H3z"/></svg>
+      </span>
+      <span class="brand-name">Atlas</span>
+    </div>
+
+    <nav class="nav-list" aria-label="Workspace">
+      <button class="nav active" id="chatTab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="nav" id="docsTab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+        <span>Documents</span>
+      </button>
+      <button class="nav" id="approvalTab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/></svg>
+        <span>Approvals</span>
+      </button>
+      <button class="nav" id="adminTab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <span>Metrics</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="status-dot"><span></span>AWS · {{ region }}</div>
+      <div class="muted small">{{ mode|capitalize }}</div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <h1 id="heading">Chat</h1>
+      <button type="button" id="newChat" class="btn ghost sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New chat
+      </button>
+    </header>
+
+    <!-- Chat -->
+    <section id="chatView" class="view chat">
+      <div id="messages" aria-live="polite">
+        <div class="hero" id="hero">
+          <h2>What can I help you find?</h2>
+          <p>Ask about your approved documents. Every answer cites its sources.</p>
+          <div class="suggestions">
+            <button class="chip" data-q="What is our leave policy?">Leave policy</button>
+            <button class="chip" data-q="Summarize the onboarding process">Onboarding process</button>
+            <button class="chip" data-q="What are the IT security rules?">IT security rules</button>
+          </div>
+        </div>
+      </div>
+      <div class="composer-wrap">
+        <form id="chatForm" class="composer">
+          <textarea id="question" rows="1" placeholder="Ask anything about company knowledge…" required></textarea>
+          <button type="submit" class="send" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </form>
+        <div class="hint">Answers may be inaccurate. Verify sources before acting.</div>
+      </div>
+    </section>
+
+    <!-- Documents -->
+    <section id="docsView" class="view page hidden">
+      <p class="lead">Upload approved PDF, DOCX, TXT or Markdown files (max 10 MB). Use non-sensitive demo documents only.</p>
+      <form id="uploadForm" class="dropzone">
+        <input id="file" type="file" accept=".pdf,.docx,.txt,.md" required>
+        <label for="file" class="dropzone-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+          <span id="fileName"><strong>Choose a file</strong> or drag it here</span>
+        </label>
+        <button class="btn primary" id="uploadBtn">Upload</button>
+      </form>
+      <div class="section-title">Library</div>
+      <div id="docs" class="list"></div>
+    </section>
+
+    <!-- Approvals -->
+    <section id="approvalView" class="view page hidden">
+      <div class="row-between">
+        <p class="lead">Review pending requests. Approving records a decision only. Nothing is deleted or exported.</p>
+        <button type="button" id="refreshApprovals" class="btn ghost sm">Refresh</button>
+      </div>
+      <div id="approvalSummary" class="muted small" role="status"></div>
+      <div id="approvalList" aria-live="polite"></div>
+    </section>
+
+    <!-- Metrics -->
+    <section id="adminView" class="view page hidden">
+      <div class="section-title">Documents</div>
+      <div id="metrics" class="stats"></div>
+      <div class="section-title">Guardrail events</div>
+      <div id="guardrailMetrics" class="stats"></div>
+    </section>
+
+    <div id="toast" role="status"></div>
+  </main>
+</div>
+<script src="/static/js/app.js?v=minimal-1"></script>
+</body>
+</html>
