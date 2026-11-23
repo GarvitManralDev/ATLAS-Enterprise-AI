@@ -1,0 +1,36 @@
+name: atlas
+
+services:
+  app:
+    build: .
+    image: atlas-enterprise-ai:latest
+    container_name: atlas-app
+    env_file: .env
+    environment:
+      # Uses DATABASE_URL from .env if set (e.g. Render), otherwise the bundled Postgres below.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://atlas:atlas@db:5432/atlas}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: atlas-db
+    environment:
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas
+      POSTGRES_DB: atlas
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
